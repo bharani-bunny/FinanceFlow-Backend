@@ -1,0 +1,76 @@
+{
+  "info": {
+    "name": "FinanceFlow Authentication",
+    "description": "Basic registration and login requests for the local FinanceFlow backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "testEmail", "value": "" },
+    { "key": "testPassword", "value": "FinanceFlow123!" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Register",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('testEmail', `financeflow${Date.now()}@example.com`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registration returns 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Registration returns the normal USER role', function () { pm.expect(pm.response.json().role).to.eql('USER'); });",
+              "pm.test('Registration does not return a password', function () { pm.expect(pm.response.json()).not.to.have.property('password'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"FinanceFlow Student\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Login returns a token and USER role', function () { const body = pm.response.json(); pm.expect(body.token).to.be.a('string').and.not.empty; pm.expect(body.role).to.eql('USER'); });",
+              "pm.collectionVariables.set('accessToken', pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "info": {
+    "name": "FinanceFlow Transactions",
+    "description": "Use an existing test user. Run requests in order to verify transaction CRUD, filters, and account balance updates. Login saves the JWT; Create Account saves the account ID.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "testEmail", "value": "" },
+    { "key": "testPassword", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "accountId", "value": "" },
+    { "key": "transactionId", "value": "" },
+    { "key": "incomeId", "value": "" },
+    { "key": "transactionDate", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Login",
+      "event": [
+        { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('transactionDate', new Date().toISOString().slice(0, 10));"] } },
+        { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Login succeeds', function () { pm.response.to.have.status(200); });", "pm.collectionVariables.set('accessToken', pm.response.json().token);"] } }
+      ],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" }
+    },
+    {
+      "name": "Create test account (starting balance 1000)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Account created', function () { pm.response.to.have.status(201); pm.expect(Number(pm.response.json().balance)).to.eql(1000); });", "pm.collectionVariables.set('accountId', pm.response.json().id);"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Transaction Test Account\",\n  \"type\": \"CASH\",\n  \"balance\": 1000.00\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/accounts" }
+    },
+    {
+      "name": "Create expense (100 Food)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Expense created', function () { pm.response.to.have.status(201); pm.expect(pm.response.json().type).to.eql('EXPENSE'); });", "pm.collectionVariables.set('transactionId', pm.response.json().id);"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": 100.00,\n  \"type\": \"EXPENSE\",\n  \"category\": \"Food\",\n  \"description\": \"Postman expense\",\n  \"date\": \"{{transactionDate}}\",\n  \"accountId\": {{accountId}}\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/transactions" }
+    },
+    {
+      "name": "Check balance after expense (900)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Expense reduced balance to 900', function () { pm.response.to.have.status(200); pm.expect(Number(pm.response.json().balance)).to.eql(900); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/accounts/{{accountId}}" }
+    },
+    {
+      "name": "Create income (50 Salary)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Income created', function () { pm.response.to.have.status(201); pm.expect(pm.response.json().type).to.eql('INCOME'); });", "pm.collectionVariables.set('incomeId', pm.response.json().id);"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": 50.00,\n  \"type\": \"INCOME\",\n  \"category\": \"Salary\",\n  \"description\": \"Postman income\",\n  \"date\": \"{{transactionDate}}\",\n  \"accountId\": {{accountId}}\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/transactions" }
+    },
+    {
+      "name": "List transactions",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Transaction list returned', function () { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array').and.to.have.lengthOf.at.least(2); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions" }
+    },
+    {
+      "name": "Filter by type",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Type filter returns only expenses', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().length).to.be.at.least(1); pm.response.json().forEach(function (item) { pm.expect(item.type).to.eql('EXPENSE'); }); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions?type=EXPENSE" }
+    },
+    {
+      "name": "Filter by category",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Category filter returns Food', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().length).to.be.at.least(1); pm.response.json().forEach(function (item) { pm.expect(item.category).to.eql('Food'); }); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions?category=Food" }
+    },
+    {
+      "name": "Filter by date",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Date filter returns matching date', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().length).to.be.at.least(1); pm.response.json().forEach(function (item) { pm.expect(item.date).to.eql(pm.collectionVariables.get('transactionDate')); }); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions?date={{transactionDate}}" }
+    },
+    {
+      "name": "Filter by account",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Account filter returns transactions for the selected account', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().length).to.be.at.least(1); pm.response.json().forEach(function (item) { pm.expect(String(item.accountId)).to.eql(String(pm.collectionVariables.get('accountId'))); }); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions?accountId={{accountId}}" }
+    },
+    {
+      "name": "Get transaction by ID",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Transaction found', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('transactionId'))); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions/{{transactionId}}" }
+    },
+    {
+      "name": "Update expense amount to 80",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Expense updated', function () { pm.response.to.have.status(200); pm.expect(Number(pm.response.json().amount)).to.eql(80); });"] } }],
+      "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": 80.00,\n  \"type\": \"EXPENSE\",\n  \"category\": \"Food\",\n  \"description\": \"Updated Postman expense\",\n  \"date\": \"{{transactionDate}}\",\n  \"accountId\": {{accountId}}\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/transactions/{{transactionId}}" }
+    },
+    {
+      "name": "Check balance after edit (970)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Edited amount updated balance to 970', function () { pm.response.to.have.status(200); pm.expect(Number(pm.response.json().balance)).to.eql(970); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/accounts/{{accountId}}" }
+    },
+    {
+      "name": "Delete expense",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Transaction deleted', function () { pm.response.to.have.status(204); });"] } }],
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions/{{transactionId}}" }
+    },
+    {
+      "name": "Check balance after delete (1050)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Deleted expense restores the balance to 1050', function () { pm.response.to.have.status(200); pm.expect(Number(pm.response.json().balance)).to.eql(1050); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/accounts/{{accountId}}" }
+    },
+    {
+      "name": "Delete income",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Income deleted', function () { pm.response.to.have.status(204); });"] } }],
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/transactions/{{incomeId}}" }
+    },
+    {
+      "name": "Check final balance (1000)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Reversing both transactions restores the original balance', function () { pm.response.to.have.status(200); pm.expect(Number(pm.response.json().balance)).to.eql(1000); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/accounts/{{accountId}}" }
+    },
+    {
+      "name": "Delete test account",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Empty account deleted', function () { pm.response.to.have.status(204); });"] } }],
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/accounts/{{accountId}}" }
+    }
+  ]
+}
