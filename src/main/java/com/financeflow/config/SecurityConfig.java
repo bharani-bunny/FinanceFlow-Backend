@@ -29,7 +29,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Create React App automatically chooses 3001 (or another free port) when 3000 is busy.
         // Keep local development usable without opening CORS to external hosts.
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*", "https://*.vercel.app"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
